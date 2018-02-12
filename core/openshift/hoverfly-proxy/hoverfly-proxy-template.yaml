@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: hoverfly-proxy
+message: A Hoverfly docker image working in Proxy configuration.
+metadata:
+  annotations:
+    description: A Hoverfly docker image working in Proxy configuration.
+    openshift.io/display-name: Hoverfly-proxy
+    tags: instant-app,hoverfly
+  creationTimestamp:
+  name: hoverfly-proxy
+  namespace: hoverfly
+  selfLink: /oapi/v1/namespaces/openshfit/templates/hoverfly-proxy
+  uid: fdc6e8a7-01ae-11e8-8492-fa163ecaf3ed
+  resourceVersion:
+  creationTimestamp:
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: hoverfly-proxy
+    name: hoverfly-proxy
+  spec:
+    tags:
+    - annotations:
+        description: The hoverfly-proxy Docker image
+        tags: v0.15.0
+      from:
+        kind: DockerImage
+        name: docker.io/joseluisaparicio/hoverfly-openshift-proxy:v0.15.0
+      importPolicy: {}
+      name: v0.15.0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: hoverfly-proxy
+      deploymentconfig: hoverfly-proxy
+    name: hoverfly-proxy
+  spec:
+    strategy:
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 1
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        maxUnavailable: 25%
+        maxSurge: 25%
+      resources: {}
+    triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - hoverfly-proxy
+          from:
+            kind: ImageStreamTag
+            namespace: hoverfly
+            name: 'hoverfly-proxy:v0.15.0'
+          lastTriggeredImage: >-
+            joseluisaparicio/hoverfly-openshift-proxy@sha256:cd3efe39bec85019e45908f7d830fd4d51a743309636dc9182c306ba017ac1a3
+    replicas: 1
+    test: false
+    selector:
+      app: hoverfly-proxy
+      deploymentconfig: hoverfly-proxy
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: hoverfly-proxy
+          deploymentconfig: hoverfly-proxy
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+      spec:
+        volumes:
+          - name: hoverfly-volume
+            persistentVolumeClaim:
+              claimName: hoverfly-storage
+        containers:
+          - name: hoverfly-proxy
+            image: >-
+              joseluisaparicio/hoverfly-openshift-proxy@sha256:cd3efe39bec85019e45908f7d830fd4d51a743309636dc9182c306ba017ac1a3
+            ports:
+              - containerPort: 8500
+                protocol: TCP
+              - containerPort: 8888
+                protocol: TCP
+            resources:
+              limits:
+                cpu: 250m
+                memory: 512Mi
+              requests:
+                cpu: 50m
+                memory: 256Mi
+            volumeMounts:
+              - name: hoverfly-volume
+                mountPath: /hoverfly-folder
+            terminationMessagePath: /dev/termination-log
+            imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst
+        securityContext: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hoverfly-proxy
+    namespace: hoverfly
+    selfLink: /api/v1/namespaces/hoverfly/services/hoverfly-proxy
+    uid: 4627533b-07f4-11e8-8492-fa163ecaf3ed
+    resourceVersion: 
+    creationTimestamp:
+    labels:
+      app: hoverfly-proxy
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+  spec:
+    ports:
+      - name: 8500-tcp
+        protocol: TCP
+        port: 8500
+        targetPort: 8500
+      - name: 8888-tcp
+        protocol: TCP
+        port: 8888
+        targetPort: 8888
+    selector:
+      deploymentconfig: hoverfly-proxy
+    clusterIP:
+    type: ClusterIP
+    sessionAffinity: None
+  status:
+    loadBalancer: {}

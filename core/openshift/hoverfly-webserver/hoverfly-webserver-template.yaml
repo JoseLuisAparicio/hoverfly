@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: hoverfly-webserver
+message: A Hoverfly docker image working in Webserver configuration.
+metadata:
+  annotations:
+    description: A Hoverfly docker image working in Webserver configuration.
+    openshift.io/display-name: Hoverfly-webserver
+    tags: instant-app,hoverfly
+  creationTimestamp:
+  name: hoverfly-webserver
+  namespace: hoverfly
+  selfLink: /oapi/v1/namespaces/openshfit/templates/hoverfly-webserver
+  uid: fdc6e8a7-01ae-11e8-8492-fa163ecaf3ed
+  resourceVersion:
+  creationTimestamp:
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: hoverfly-webserver
+    name: hoverfly-webserver
+  spec:
+    tags:
+    - annotations:
+        description: The hoverfly-webserver Docker image
+        tags: v0.15.0
+      from:
+        kind: DockerImage
+        name: docker.io/joseluisaparicio/hoverfly-openshift-webserver:v0.15.0
+      importPolicy: {}
+      name: v0.15.0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: hoverfly-webserver
+      deploymentconfig: hoverfly-webserver
+    name: hoverfly-webserver
+  spec:
+    strategy:
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 1
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        maxUnavailable: 25%
+        maxSurge: 25%
+      resources: {}
+    triggers:
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - hoverfly-webserver
+          from:
+            kind: ImageStreamTag
+            namespace: hoverfly
+            name: 'hoverfly-webserver:v0.15.0'
+          lastTriggeredImage: >-
+            joseluisaparicio/hoverfly-openshift-webserver@sha256:a1378fe1211616f4a1660cc4411ad8e0e88b0cbf52ad9c419f75a33a9e7a3a81
+    replicas: 1
+    test: false
+    selector:
+      app: hoverfly-webserver
+      deploymentconfig: hoverfly-webserver
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: hoverfly-webserver
+          deploymentconfig: hoverfly-webserver
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+      spec:
+        volumes:
+          - name: hoverfly-volume
+            persistentVolumeClaim:
+              claimName: hoverfly-storage
+        containers:
+          - name: hoverfly-webserver
+            image: >-
+              joseluisaparicio/hoverfly-openshift-webserver@sha256:a1378fe1211616f4a1660cc4411ad8e0e88b0cbf52ad9c419f75a33a9e7a3a81
+            ports:
+              - containerPort: 8500
+                protocol: TCP
+              - containerPort: 8888
+                protocol: TCP
+            resources:
+              limits:
+                cpu: 250m
+                memory: 512Mi
+              requests:
+                cpu: 50m
+                memory: 256Mi
+            volumeMounts:
+              - name: hoverfly-volume
+                mountPath: /hoverfly-folder
+            terminationMessagePath: /dev/termination-log
+            imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        terminationGracePeriodSeconds: 30
+        dnsPolicy: ClusterFirst
+        securityContext: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: hoverfly-webserver
+    namespace: hoverfly
+    selfLink: /api/v1/namespaces/hoverfly/services/hoverfly-webserver
+    uid: 4627533b-07f4-11e8-8492-fa163ecaf3ed
+    resourceVersion: 
+    creationTimestamp:
+    labels:
+      app: hoverfly-webserver
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+  spec:
+    ports:
+      - name: 8500-tcp
+        protocol: TCP
+        port: 8500
+        targetPort: 8500
+      - name: 8888-tcp
+        protocol: TCP
+        port: 8888
+        targetPort: 8888
+    selector:
+      deploymentconfig: hoverfly-webserver
+    clusterIP:
+    type: ClusterIP
+    sessionAffinity: None
+  status:
+    loadBalancer: {}
